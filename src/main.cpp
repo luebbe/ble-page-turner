@@ -38,13 +38,22 @@ BleKeyboard bleKeyboard(NAME, AUTHOR, 100);
 // Finite state machine for transitions
 SimpleFSM fsm;
 
-// Key bindings for the ble keyboard
+// Key bindings for the BLE keyboard
+// left without right
 #define KBD_LEFT_PRESS KEY_UP_ARROW
 #define KBD_LEFT_HOLD KEY_PAGE_UP
+// right without left
 #define KBD_RIGHT_PRESS KEY_DOWN_ARROW
 #define KBD_RIGHT_HOLD KEY_PAGE_DOWN
+// left + right simultaneously
 #define KBD_BOTH_PRESS KEY_LEFT_CTRL
 #define KBD_BOTH_HOLD KEY_RIGHT_CTRL
+// left hold + right press/hold
+#define KBD_LEFT_RIGHT_PRESS KEY_RIGHT_ALT
+#define KBD_LEFT_RIGHT_HOLD KEY_RIGHT_SHIFT
+// right hold + left press/hold
+#define KBD_RIGHT_LEFT_PRESS KEY_LEFT_ALT
+#define KBD_RIGHT_LEFT_HOLD KEY_LEFT_SHIFT
 
 void on_change()
 {
@@ -56,7 +65,7 @@ void on_idle()
   Serial.println("---");
 }
 
-void on_left()
+void on_leftDown()
 {
   on_change();
   bleKeyboard.write(KBD_LEFT_PRESS);
@@ -68,7 +77,7 @@ void on_leftHold()
   bleKeyboard.write(KBD_RIGHT_PRESS);
 }
 
-void on_right()
+void on_rightDown()
 {
   on_change();
   bleKeyboard.write(KBD_RIGHT_PRESS);
@@ -80,7 +89,7 @@ void on_rightHold()
   bleKeyboard.write(KBD_RIGHT_HOLD);
 }
 
-void on_both()
+void on_bothDown()
 {
   on_change();
   bleKeyboard.write(KBD_BOTH_PRESS);
@@ -92,184 +101,166 @@ void on_bothHold()
   bleKeyboard.write(KBD_BOTH_HOLD);
 }
 
-void on_leftright()
+void on_leftRightDown()
 {
-  Serial.println(fsm.getState()->getName());
-  // Serial.println("LEFTRIGHT");
+  on_change();
+  bleKeyboard.write(KBD_LEFT_RIGHT_PRESS);
 }
 
-void on_rightleft()
+void on_leftRightHold()
 {
-  Serial.println(fsm.getState()->getName());
-  // Serial.println("RIGHTLEFT");
+  on_change();
+  bleKeyboard.write(KBD_LEFT_RIGHT_HOLD);
+}
+
+void on_rightLeftDown()
+{
+  on_change();
+  bleKeyboard.write(KBD_RIGHT_LEFT_PRESS);
+}
+
+void on_rightLeftHold()
+{
+  on_change();
+  bleKeyboard.write(KBD_RIGHT_LEFT_HOLD);
 }
 
 enum triggers
 {
-  left_down,
-  left_hold,
-  left_released,
-  left_idle,
-  right_down,
-  right_hold,
-  right_released,
-  right_idle
+  trgLeftDown,
+  trgLeftHold,
+  trgLeftReleased,
+  trgLeftIdle,
+  trgRightDown,
+  trgRightHold,
+  trgRightReleased,
+  trgRightIdle
+};
+
+enum states
+{
+  stIdle,
+  // left without right
+  stLeftDown,
+  stLeftHold,
+  stLeftDownReleased,
+  stLeftHoldReleased,
+  // right without left
+  stRightDown,
+  stRightHold,
+  stRightDownReleased,
+  stRightHoldReleased,
+  // left + right simultaneously
+  stBothDown,
+  stBothHold,
+  stBothDownReleased,
+  stBothHoldReleased,
+  // left hold + right press/hold
+  stLeftHoldRightDown,
+  stLeftHoldRightHold,
+  stLeftHoldRightDownReleased,
+  stLeftHoldRightHoldReleased,
+  stLeftHoldRightIdle,
+  // right hold + left press/hold
+  stRightHoldLeftDown,
+  stRightHoldLeftHold,
+  stRightHoldLeftDownReleased,
+  stRightHoldLeftHoldReleased,
+  stRightHoldLeftIdle,
 };
 
 State s[] = {
-    State("Idle", on_idle), // 0
-
+    State("Idle", on_idle),
     // left without right
-    State("LP", on_change),    // 1
-    State("LH", on_change),    // 2
-    State("LPR", on_left),     // 3
-    State("LHR", on_leftHold), // 4
-
-    // // right without left
-    State("RP", on_change),     // 5
-    State("RH", on_change),     // 6
-    State("RPR", on_right),     // 7
-    State("RHR", on_rightHold), // 8
-
+    State("LD", on_change),
+    State("LH", on_change),
+    State("LDR", on_leftDown),
+    State("LHR", on_leftHold),
+    // right without left
+    State("RD", on_change),
+    State("RH", on_change),
+    State("RDR", on_rightDown),
+    State("RHR", on_rightHold),
     // left + right simultaneously
-    State("DP", on_change),    // 9
-    State("DH", on_change),    // 10
-    State("DPR", on_both),     // 11
-    State("DHR", on_bothHold), // 12
-
-    // left hold + right
-    State("LHRP", on_change), // 13
-    State("LHRH", on_change), // 14
-    State("LHRR", on_change), // 15
-    State("LHRI", on_change), // 16
-
-    // right hold + left
-    State("RHLP", on_change), // 17
-    State("RHLH", on_change), // 18
-    State("RHRR", on_change), // 19
-    State("RHLI", on_change), // 20
+    State("BD", on_change),
+    State("BH", on_change),
+    State("BDR", on_bothDown),
+    State("BHR", on_bothHold),
+    // left hold + right press/hold
+    State("LHRD", on_change),
+    State("LHRH", on_change),
+    State("LHRDR", on_leftRightDown),
+    State("LHRHR", on_leftRightHold),
+    State("LHRI", on_change),
+    // right hold + left press/hold
+    State("RHLD", on_change),
+    State("RHLH", on_change),
+    State("RHLDR", on_rightLeftDown),
+    State("RHLHR", on_rightLeftHold),
+    State("RHLI", on_change),
 };
 
 Transition transitions[] = {
     // left without right
-    Transition(&s[0], &s[1], left_down),
-    Transition(&s[1], &s[2], left_hold),
-    Transition(&s[1], &s[3], left_released),
-    Transition(&s[2], &s[4], left_released),
-    Transition(&s[3], &s[0], left_idle), // Return to global idle, when single key
-    Transition(&s[4], &s[0], left_idle),
+    Transition(&s[stIdle], &s[stLeftDown], trgLeftDown),
+    Transition(&s[stLeftDown], &s[stLeftHold], trgLeftHold),
+    Transition(&s[stLeftDown], &s[stLeftDownReleased], trgLeftReleased),
+    Transition(&s[stLeftHold], &s[stLeftHoldReleased], trgLeftReleased),
+    Transition(&s[stLeftDownReleased], &s[stIdle], trgLeftIdle), // Return to idle, when single key
+    Transition(&s[stLeftHoldReleased], &s[stIdle], trgLeftIdle),
 
     // right without left
-    Transition(&s[0], &s[5], right_down),
-    Transition(&s[5], &s[6], right_hold),
-    Transition(&s[5], &s[7], right_released),
-    Transition(&s[6], &s[8], right_released),
-    Transition(&s[7], &s[0], right_idle), // Return to global idle, when single key
-    Transition(&s[8], &s[0], right_idle),
+    Transition(&s[stIdle], &s[stRightDown], trgRightDown),
+    Transition(&s[stRightDown], &s[stRightHold], trgRightHold),
+    Transition(&s[stRightDown], &s[stRightDownReleased], trgRightReleased),
+    Transition(&s[stRightHold], &s[stRightHoldReleased], trgRightReleased),
+    Transition(&s[stRightDownReleased], &s[stIdle], trgRightIdle), // Return to idle, when single key
+    Transition(&s[stRightHoldReleased], &s[stIdle], trgRightIdle),
 
     // left + right simultaneously
-    Transition(&s[5], &s[9], left_down),
-    Transition(&s[1], &s[9], right_down),
-    Transition(&s[9], &s[10], left_hold),
-    Transition(&s[9], &s[10], right_hold),
-    Transition(&s[9], &s[11], left_released),
-    Transition(&s[9], &s[11], right_released),
-    Transition(&s[10], &s[12], left_released),
-    Transition(&s[10], &s[12], right_released),
-    Transition(&s[11], &s[0], left_idle), // Return to global idle, when any of the keys becomes idle
-    Transition(&s[11], &s[0], right_idle),
-    Transition(&s[12], &s[0], left_idle), 
-    Transition(&s[12], &s[0], right_idle),
+    Transition(&s[stRightDown], &s[stBothDown], trgLeftDown),
+    Transition(&s[stLeftDown], &s[stBothDown], trgRightDown),
+    Transition(&s[stBothDown], &s[stBothHold], trgLeftHold),
+    Transition(&s[stBothDown], &s[stBothHold], trgRightHold),
+    Transition(&s[stBothDown], &s[stBothDownReleased], trgLeftReleased),
+    Transition(&s[stBothDown], &s[stBothDownReleased], trgRightReleased),
+    Transition(&s[stBothHold], &s[stBothHoldReleased], trgLeftReleased),
+    Transition(&s[stBothHold], &s[stBothHoldReleased], trgRightReleased),
+    Transition(&s[stBothDownReleased], &s[stIdle], trgLeftIdle), // Return to idle, when any of the keys becomes idle
+    Transition(&s[stBothDownReleased], &s[stIdle], trgRightIdle),
+    Transition(&s[stBothHoldReleased], &s[stIdle], trgLeftIdle),
+    Transition(&s[stBothHoldReleased], &s[stIdle], trgRightIdle),
 
-    // // left hold + right
-    // Transition(&s[2], &s[13], right_down),
-    // Transition(&s[13], &s[14], right_hold),
-    // Transition(&s[14], &s[15], right_released),
-    // Transition(&s[13], &s[15], right_released),
-    // Transition(&s[15], &s[16], right_idle),
-    // Transition(&s[16], &s[13], right_down),
-    // Transition(&s[13], &s[0], left_idle), // Releasing the left key cancels everything
-    // Transition(&s[14], &s[0], left_idle),
-    // Transition(&s[15], &s[0], left_idle),
-    // Transition(&s[16], &s[0], left_idle),
+    // left hold + right press/hold
+    Transition(&s[stLeftHold], &s[stLeftHoldRightDown], trgRightDown),
+    Transition(&s[stLeftHoldRightDown], &s[stLeftHoldRightHold], trgRightHold),
+    Transition(&s[stLeftHoldRightDown], &s[stLeftHoldRightDownReleased], trgRightReleased),
+    Transition(&s[stLeftHoldRightHold], &s[stLeftHoldRightHoldReleased], trgRightReleased),
+    Transition(&s[stLeftHoldRightDownReleased], &s[stLeftHoldRightIdle], trgRightIdle),
+    Transition(&s[stLeftHoldRightHoldReleased], &s[stLeftHoldRightIdle], trgRightIdle),
+    Transition(&s[stLeftHoldRightIdle], &s[stLeftHoldRightDown], trgRightDown),
+    Transition(&s[stLeftHoldRightDown], &s[stIdle], trgLeftIdle), // Return to idle, when the left key is released
+    Transition(&s[stLeftHoldRightHold], &s[stIdle], trgLeftIdle),
+    Transition(&s[stLeftHoldRightIdle], &s[stIdle], trgLeftIdle),
+    Transition(&s[stLeftHoldRightDownReleased], &s[stIdle], trgLeftIdle),
+    Transition(&s[stLeftHoldRightHoldReleased], &s[stIdle], trgLeftIdle),
 
-    // // right hold + left
-    // Transition(&s[6], &s[17], left_down),
-    // Transition(&s[17], &s[18], left_hold),
-    // Transition(&s[18], &s[19], left_released),
-    // Transition(&s[17], &s[19], left_released),
-    // Transition(&s[19], &s[20], left_idle),
-    // Transition(&s[20], &s[17], left_down),
-    // Transition(&s[17], &s[0], right_idle), // Releasing the right key cancels everything
-    // Transition(&s[18], &s[0], right_idle),
-    // Transition(&s[19], &s[0], right_idle),
-    // Transition(&s[20], &s[0], right_idle),
+    // right hold + left press/hold
+    Transition(&s[stRightHold], &s[stRightHoldLeftDown], trgLeftDown),
+    Transition(&s[stRightHoldLeftDown], &s[stRightHoldLeftHold], trgLeftHold),
+    Transition(&s[stRightHoldLeftDown], &s[stRightHoldLeftDownReleased], trgLeftReleased),
+    Transition(&s[stRightHoldLeftHold], &s[stRightHoldLeftHoldReleased], trgLeftReleased),
+    Transition(&s[stRightHoldLeftDownReleased], &s[stRightHoldLeftIdle], trgLeftIdle),
+    Transition(&s[stRightHoldLeftHoldReleased], &s[stRightHoldLeftIdle], trgLeftIdle),
+    Transition(&s[stRightHoldLeftIdle], &s[stRightHoldLeftDown], trgLeftDown),
+    Transition(&s[stRightHoldLeftDown], &s[stIdle], trgRightIdle), // Return to idle, when the right key is released
+    Transition(&s[stRightHoldLeftHold], &s[stIdle], trgRightIdle),
+    Transition(&s[stRightHoldLeftIdle], &s[stIdle], trgRightIdle),
+    Transition(&s[stRightHoldLeftDownReleased], &s[stIdle], trgRightIdle),
+    Transition(&s[stRightHoldLeftHoldReleased], &s[stIdle], trgRightIdle),
 };
 
 int num_transitions = sizeof(transitions) / sizeof(Transition);
-
-// bool isBatteryLow()
-// {
-//   const byte SAMPLE_COUNT = 16;
-//   const int HI_VOLTAGE = 2200;  // About 3.7V
-//   const int LOW_VOLTAGE = 1750; // About 3.0V
-
-//   static int samples[SAMPLE_COUNT];
-//   static byte ptr = 0;
-
-//   int batteryAvg = 0;
-
-//   // Get a reading from the ADC
-//   samples[ptr++] = analogRead(battPin);
-//   ptr &= 0x0F;
-
-//   // Average the collected samples
-//   for (byte i = 0; i < SAMPLE_COUNT; i++)
-//   {
-//     batteryAvg += samples[i];
-//   }
-//   batteryAvg += SAMPLE_COUNT / 2; // Make sure we round correctly
-//   batteryAvg /= SAMPLE_COUNT;
-//   Serial.printf("Battery: %d\n", batteryAvg);
-
-//   bleKeyboard.setBatteryLevel(batteryAvg >= HI_VOLTAGE ? 100 : 10 + 90 * (batteryAvg - LOW_VOLTAGE) / (HI_VOLTAGE - LOW_VOLTAGE));
-//   delay(BLE_DELAY);
-//   Serial.printf("Battery: %d%%\n", 10 + 90 * (batteryAvg - LOW_VOLTAGE) / (HI_VOLTAGE - LOW_VOLTAGE));
-
-//   return batteryAvg <= LOW_VOLTAGE ? true : false;
-// }
-
-// Handle short and long presses of the two buttons
-// void keypadEvent(KeypadEvent key)
-// {
-//   static bool shortPress;
-
-//   Serial.print(key);
-//   switch (keypad.getState())
-//   {
-//   case PRESSED:
-//     Serial.println('P');
-//     shortPress = true;
-//     break;
-
-//   case RELEASED:
-//     Serial.println('R');
-//     if (shortPress)
-//       bleKeyboard.press(key == RIGHT ? KEY_DOWN_ARROW : KEY_UP_ARROW);
-//     break;
-
-//   case HOLD:
-//     Serial.println('H');
-//     shortPress = false;
-//     bleKeyboard.press(key == RIGHT ? KEY_PAGE_DOWN : KEY_PAGE_UP);
-//     break;
-
-//   case IDLE:
-//     Serial.println('I');
-//     break;
-//   }
-//   bleKeyboard.releaseAll(); // Release the keys
-// }
 
 void handleKeys()
 {
@@ -279,22 +270,23 @@ void handleKeys()
     Key key = keypad.key[i];
     if (key.stateChanged) // Only find keys that have changed state.
     {
-      switch (keypad.key[i].kstate)
-      { // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
+      switch (key.kstate)
+      {
+      // Trigger the FSM depending on the active key state : IDLE, PRESSED, HOLD, or RELEASED
       case PRESSED:
-        fsm.trigger(key.kchar == RIGHT ? right_down : left_down);
+        fsm.trigger(key.kchar == RIGHT ? trgRightDown : trgLeftDown);
         break;
 
       case HOLD:
-        fsm.trigger(key.kchar == RIGHT ? right_hold : left_hold);
+        fsm.trigger(key.kchar == RIGHT ? trgRightHold : trgLeftHold);
         break;
 
       case RELEASED:
-        fsm.trigger(key.kchar == RIGHT ? right_released : left_released);
+        fsm.trigger(key.kchar == RIGHT ? trgRightReleased : trgLeftReleased);
         break;
 
       case IDLE:
-        fsm.trigger(key.kchar == RIGHT ? right_idle : left_idle);
+        fsm.trigger(key.kchar == RIGHT ? trgRightIdle : trgLeftIdle);
       }
     }
   }
@@ -329,7 +321,7 @@ void setup()
   setConnected(false);
 
   fsm.add(transitions, num_transitions);
-  fsm.setInitialState(&s[0]);
+  fsm.setInitialState(&s[stIdle]);
 
   bleKeyboard.begin();
   bleKeyboard.setDelay(BLE_DELAY);
@@ -337,8 +329,6 @@ void setup()
 
 void loop()
 {
-  // static unsigned long updateTimer = 0;
-
   fsm.run();
 
   if (bleKeyboard.isConnected())
@@ -353,10 +343,4 @@ void loop()
   {
     setConnected(false);
   }
-
-  // if (millis() - updateTimer > 1000)
-  // {
-  //   isBatteryLow();
-  //   updateTimer = millis();
-  // }
 }
