@@ -74,7 +74,7 @@ void on_leftDown()
 void on_leftHold()
 {
   on_change();
-  bleKeyboard.write(KBD_RIGHT_PRESS);
+  bleKeyboard.write(KBD_LEFT_HOLD);
 }
 
 void on_rightDown()
